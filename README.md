@@ -1,5 +1,104 @@
 # IoT Smart City — Phase 2 Simulation (GNS3)
 
+# Project Information
+
+- **Project:** Project Phase 2 - Design and Simulation of a Scalable and Secure Network Architecture for IoT Applications (GNS3)
+- **Name:** Carlos Gutierrez
+- **Email:** cgutierrez44833@ucumberlands.edu
+- **Course:** MSCS-631-B01 Advanced Computer Networks
+- **License:** MIT (see `LICENSE`)
+
+## Project Structure
+
+```
+MSCS631_IoT_Simulation/
+├── scripts/            # build_project.py, labctl.py, gns3api.py, mac-capture.sh
+├── images/             # Dockerfiles and boot scripts: iot-router/ and iot-host/
+├── configs/            # lab PKI (throwaway keys) and node configuration inputs
+├── results/            # test outputs: *.md tables, *.json, scale.csv, pcaps
+├── export/             # portable GNS3 project (IoT_Smart_City_Phase2.gns3project)
+├── requirements.txt    # Python packages (none required; paho-mqtt optional)
+├── LICENSE             # MIT
+└── README.md           # this file
+```
+
+## Usage
+
+### Requirements
+
+- A GNS3 server with the two Docker images built (section 5) and network access to it (Tailscale).
+- Python 3 standard library only (no extra packages; `paho-mqtt` is optional).
+- Wireshark on the Mac for packet captures.
+- SSH key authentication to the GNS3 server.
+
+### Run
+
+Start the lab in the GNS3 web UI (**▶ Start all**, wait about 40 s), then from the repository root:
+
+```bash
+python3 scripts/labctl.py status         # routing / BFD / BGP / firewall / bridge health
+python3 scripts/labctl.py access secure  # zone access-control matrix (designed firewall)
+python3 scripts/labctl.py access open    # same flows on a flat network (baseline)
+python3 scripts/labctl.py mtls           # valid vs rogue vs no certificate
+python3 scripts/labctl.py breach         # plaintext MQTT vs mutual TLS on the wire
+python3 scripts/labctl.py failover       # cut ring link C1–C2, measure convergence
+python3 scripts/labctl.py scale          # 100 → 10 000 devices (~5 min)
+python3 scripts/labctl.py qos            # EF vs best effort under congestion (~2 min)
+python3 scripts/labctl.py ddos           # SYN floods, protections off vs on (~2 min)
+python3 scripts/labctl.py add-cluster    # S2: add cluster C6
+```
+
+The full step-by-step (setup, GNS3 UI, remote execution) is in section 2; results are in section 4.
+
+### Run all tests / capture
+
+Run the commands above in order; each saves its table in `results/`. For live packet captures use:
+
+```bash
+./scripts/mac-capture.sh NODE IFACE ["filter"] [save.pcapng]
+```
+
+Where to capture and which Wireshark filters to use for the report: sections 2.4, 2.5 and 3.
+
+### Troubleshooting
+
+- **`FileNotFoundError` for `.project_id`:** the clone is out of date; run `git pull`.
+- **A node suddenly loses its link:** delete and redraw the link in the web UI, or restart the node.
+- **`send: Message too long` from uBridge:** caused by the large default MTU on GNS3 Docker interfaces; the lab images set MTU 1500 and disable offloads at boot (section 7).
+- **Broker cannot read its config (AppArmor):** the lab runs the broker as `/usr/local/sbin/mqtt-broker` instead of the confined `mosquitto` binary (section 7).
+
+## How it works
+
+- GNS3 runs Docker nodes: FRR routers, the FW-C2 nftables zone firewall, the CABINET-SW VLAN-aware Linux bridge, MQTT brokers with mutual TLS, and sensor/attacker hosts.
+- Five fog clusters form a ring running OSPFv2/OSPFv3 with BFD (150 ms × 3); two data centers are dual-homed to two ISPs over eBGP.
+- The fog aggregator on BROKER-C2 sends one summary per class every 10 s; the MQTT bridge forwards only `city/c2/summary/#` to the cloud.
+- QoS: DSCP is set at FW-C2 and HTB gives strict priority to EF on the 10 Mbit/s fog uplink.
+- DDoS controls: per-port SYN policing at the cabinet switch, per-source and global SYN limits, connection limits and SYN cookies at the fog firewall, front-door limits at DC-A, egress anti-spoofing.
+- `labctl.py` tests and what they measure:
+  - `access`: 18 flows against the Phase 1 zone matrix (secure vs flat network).
+  - `mtls`: valid, rogue-CA, no-certificate and plaintext clients.
+  - `breach`: what an on-path attacker sees (plaintext 1883 vs mTLS 8883).
+  - `failover`: outage after a silent ring-link cut.
+  - `scale`: throughput, loss, latency and upstream reduction as devices grow.
+  - `qos`: RTT per DSCP class on a saturated uplink.
+  - `ddos`: legitimate latency under SYN floods at three protection levels.
+  - `add-cluster`: routes learned after adding C6 with no changes elsewhere.
+- Key defaults: 1 msg/s per device, 3 000 SYN/s floods, 10 Mbit/s fog uplink.
+
+## Notes
+
+- Simplifications: MPLS L3VPN/VRFs are replaced by VLANs plus a stateful zone firewall; LoRaWAN, C-V2X and 5G radios are represented by their IP-side gateways; link speeds are not emulated except the fog uplink.
+- The PKI keys in `configs/pki/` are throwaway, lab-only keys.
+- Results come from a single run on a shared host.
+
+## About
+
+Phase 2 simulation for MSCS-631 Advanced Computer Networks. It implements the Phase 1 smart-city IoT design in GNS3 and validates its scalability and security.
+
+---
+
+## Detailed guide
+
 Simulation of the Phase 1 design (*Design and Simulation of a Scalable and Secure Network Architecture for IoT Applications*, metro-Atlanta transportation): five fog clusters on a ring, two data centers, two ISPs, and the Marietta/Smyrna cluster (C2) built in detail with its VLAN zones, fog firewall, MQTT brokers and security controls. Everything runs in **GNS3 on the home server (carlos)** and is opened from the **Mac** through the GNS3 web UI; packets are analyzed with **Wireshark on the Mac**.
 
 - GNS3 web UI: **http://100.99.194.92:3080** → project **"IoT Smart City - Phase 2"** (Tailscale must be on)
