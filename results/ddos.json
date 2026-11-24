@@ -1,0 +1,117 @@
+{
+ "test": "ddos",
+ "time": "20261123-2050",
+ "data": [
+  {
+   "level": "1 none",
+   "baseline": {
+    "tool": "latency-sink",
+    "label": "",
+    "topic": "city/c2/raw/transit/#",
+    "received": 600,
+    "msgs_per_s": 50.1,
+    "devices_seen": 50,
+    "lost": 0,
+    "loss_pct": 0.0,
+    "duplicates": 0,
+    "lat_ms_p50": 0.33,
+    "lat_ms_p95": 0.52,
+    "lat_ms_p99": 3.21,
+    "lat_ms_max": 21.07
+   },
+   "under_attack": {
+    "tool": "latency-sink",
+    "label": "",
+    "topic": "city/c2/raw/transit/#",
+    "received": 598,
+    "msgs_per_s": 44.8,
+    "devices_seen": 50,
+    "lost": 0,
+    "loss_pct": 0.0,
+    "duplicates": 0,
+    "lat_ms_p50": 171.47,
+    "lat_ms_p95": 2962.05,
+    "lat_ms_p99": 3416.6,
+    "lat_ms_max": 3513.27
+   },
+   "cloud_connect_ok": true,
+   "dropped_edge_switch": 0,
+   "dropped_fw_c2": 0,
+   "dropped_dc_a": 0
+  },
+  {
+   "level": "2 firewall + front-door guard",
+   "baseline": {
+    "tool": "latency-sink",
+    "label": "",
+    "topic": "city/c2/raw/transit/#",
+    "received": 600,
+    "msgs_per_s": 50.1,
+    "devices_seen": 50,
+    "lost": 0,
+    "loss_pct": 0.0,
+    "duplicates": 0,
+    "lat_ms_p50": 0.33,
+    "lat_ms_p95": 0.51,
+    "lat_ms_p99": 0.93,
+    "lat_ms_max": 20.83
+   },
+   "under_attack": {
+    "tool": "latency-sink",
+    "label": "",
+    "topic": "city/c2/raw/transit/#",
+    "received": 596,
+    "msgs_per_s": 49.8,
+    "devices_seen": 50,
+    "lost": 0,
+    "loss_pct": 0.0,
+    "duplicates": 0,
+    "lat_ms_p50": 89.04,
+    "lat_ms_p95": 492.11,
+    "lat_ms_p99": 802.91,
+    "lat_ms_max": 901.94
+   },
+   "cloud_connect_ok": true,
+   "dropped_edge_switch": 0,
+   "dropped_fw_c2": 311068,
+   "dropped_dc_a": 235773
+  },
+  {
+   "level": "3 guard + edge port policing",
+   "baseline": {
+    "tool": "latency-sink",
+    "label": "",
+    "topic": "city/c2/raw/transit/#",
+    "received": 599,
+    "msgs_per_s": 50.0,
+    "devices_seen": 50,
+    "lost": 0,
+    "loss_pct": 0.0,
+    "duplicates": 0,
+    "lat_ms_p50": 0.43,
+    "lat_ms_p95": 0.64,
+    "lat_ms_p99": 2.53,
+    "lat_ms_max": 20.77
+   },
+   "under_attack": {
+    "tool": "latency-sink",
+    "label": "",
+    "topic": "city/c2/raw/transit/#",
+    "received": 599,
+    "msgs_per_s": 50.0,
+    "devices_seen": 50,
+    "lost": 0,
+    "loss_pct": 0.0,
+    "duplicates": 0,
+    "lat_ms_p50": 0.46,
+    "lat_ms_p95": 1.64,
+    "lat_ms_p99": 5.1,
+    "lat_ms_max": 30.93
+   },
+   "cloud_connect_ok": true,
+   "dropped_edge_switch": 2279785,
+   "dropped_fw_c2": 1190,
+   "dropped_dc_a": 302605
+  }
+ ]
+}

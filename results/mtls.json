@@ -1,0 +1,30 @@
+{
+ "test": "mtls",
+ "time": "20261123-2037",
+ "data": [
+  {
+   "case": "Valid device certificate (lab CA)",
+   "accepted": true,
+   "expected": true,
+   "msg": ""
+  },
+  {
+   "case": "Rogue certificate (untrusted CA)",
+   "accepted": false,
+   "expected": false,
+   "msg": "Error: The connection was lost."
+  },
+  {
+   "case": "No client certificate",
+   "accepted": false,
+   "expected": false,
+   "msg": "Error: The connection was lost."
+  },
+  {
+   "case": "Plaintext (no TLS) to 8883",
+   "accepted": false,
+   "expected": false,
+   "msg": "Error: Protocol error"
+  }
+ ]
+}

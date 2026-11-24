@@ -1,0 +1,15 @@
+{
+ "test": "failover",
+ "time": "20261123-2037",
+ "data": {
+  "path_before": [
+   "10.254.0.2 (eth0)"
+  ],
+  "probe_interval_ms": 20,
+  "lost_packets": 66,
+  "outage_ms": 1320,
+  "new_path_via": [
+   "10.254.0.17 (eth1)"
+  ]
+ }
+}

@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""fog-aggregator: requirement S1 (hierarchical filtering).
+
+Runs on the fog broker. Subscribes to raw device telemetry of its cluster,
+and every --window seconds publishes ONE summary message per device class to
+city/<cluster>/summary/<class>. Only summary topics are bridged to the cloud,
+so upstream traffic is a small fraction of raw traffic.
+Stats (raw in / summaries out / reduction) are written to /var/log/fog-aggregator.log.
+"""
+import argparse, json, os, ssl, threading, time
+import paho.mqtt.client as mqtt
+
+
+def mk_client(cid):
+    """paho-mqtt 1.x and 2.x compatible constructor."""
+    try:
+        return mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=cid)
+    except AttributeError:
+        return mqtt.Client(client_id=cid)
+
+p = argparse.ArgumentParser()
+p.add_argument("--broker", default="127.0.0.1")
+p.add_argument("--port", type=int, default=1884, help="local-only listener on the fog broker")
+p.add_argument("--cluster", default="c2")
+p.add_argument("--window", type=float, default=10)
+a = p.parse_args()
+
+lock = threading.Lock()
+acc = {}            # cls -> [count, sum, min, max, devices]
+tot_in = tot_out = 0
+
+
+def on_message(c, u, m):
+    global tot_in
+    parts = m.topic.split("/")          # city/c2/raw/<cls>/<dev>
+    cls = parts[3] if len(parts) > 3 else "unknown"
+    try:
+        v = float(json.loads(m.payload).get("v", 0))
+    except Exception:
+        v = 0.0
+    with lock:
+        tot_in += 1
+        s = acc.setdefault(cls, [0, 0.0, v, v, set()])
+        s[0] += 1; s[1] += v; s[2] = min(s[2], v); s[3] = max(s[3], v); s[4].add(parts[-1])
+
+
+c = mk_client(f"fog-aggregator-{a.cluster}")
+c.on_message = on_message
+c.on_connect = lambda c, *args: c.subscribe(f"city/{a.cluster}/raw/#")
+while True:
+    try:
+        c.connect(a.broker, a.port, keepalive=30); break
+    except Exception:
+        time.sleep(2)
+c.loop_start()
+while True:
+    time.sleep(a.window)
+    with lock:
+        snap, acc = acc, {}
+    for cls, (n, sm, mn, mx, devs) in snap.items():
+        msg = {"cluster": a.cluster, "cls": cls, "window_s": a.window, "count": n, "devices": len(devs),
+               "avg": round(sm / n, 2), "min": mn, "max": mx, "ts": time.time_ns(), "seq": int(time.time() // a.window),
+               "id": f"summary-{a.cluster}-{cls}"}
+        c.publish(f"city/{a.cluster}/summary/{cls}", json.dumps(msg), qos=1)
+        tot_out += 1
+    with open("/var/log/fog-aggregator.log", "a") as f:
+        red = 100 * (1 - tot_out / tot_in) if tot_in else 0
+        f.write(f"{time.strftime('%H:%M:%S')} raw_in={tot_in} summaries_out={tot_out} reduction={red:.2f}%\n")

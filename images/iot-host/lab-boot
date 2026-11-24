@@ -1,0 +1,11 @@
+#!/bin/bash
+# GNS3 links are UDP tunnels (uBridge): disable segmentation offloads so the kernel never hands
+# uBridge a 64 KB super-frame ("send: Message too long" kills the link thread under bulk traffic).
+# GNS3 also creates the interfaces with MTU 65521: force a normal Ethernet MTU of 1500.
+for i in $(ls /sys/class/net | grep -E '^eth[0-9]+$'); do ip link set "$i" mtu 1500 2>/dev/null; ethtool -K "$i" tso off gso off gro off tx off >/dev/null 2>&1; done
+# Boot: run /etc/lab/startup.sh (addresses, services), then give a shell (console).
+sysctl -qw net.ipv4.tcp_syncookies=1 2>/dev/null
+[ -x /etc/lab/startup.sh ] && /etc/lab/startup.sh > /var/log/lab-startup.log 2>&1
+cd /root 2>/dev/null; export PS1="\h# "
+echo "$(hostname): host ready. Lab tools: sensor-sim, latency-sink, fog-aggregator, nping, nmap, mosquitto_pub/sub, iperf3. Boot log: /var/log/lab-startup.log"
+exec bash -l

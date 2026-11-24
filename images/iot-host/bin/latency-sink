@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""latency-sink: subscribe to IoT telemetry and report throughput, one-way latency and loss.
+
+Example (measure 60 s of raw C2 traffic at the fog broker):
+  latency-sink --broker 10.2.200.10 --tls --topic 'city/c2/raw/#' --duration 60
+Prints a JSON summary; --csv FILE appends one row for plotting in the report.
+"""
+import argparse, json, os, ssl, statistics, sys, time
+import paho.mqtt.client as mqtt
+
+
+def mk_client(cid):
+    """paho-mqtt 1.x and 2.x compatible constructor."""
+    try:
+        return mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=cid)
+    except AttributeError:
+        return mqtt.Client(client_id=cid)
+
+p = argparse.ArgumentParser()
+p.add_argument("--broker", required=True)
+p.add_argument("--port", type=int, default=None)
+p.add_argument("--tls", action="store_true")
+p.add_argument("--ca", default="/etc/lab/pki/ca.crt")
+p.add_argument("--cert", default="/etc/lab/pki/client.crt")
+p.add_argument("--key", default="/etc/lab/pki/client.key")
+p.add_argument("--topic", default="city/+/raw/#")
+p.add_argument("--duration", type=float, default=30)
+p.add_argument("--label", default="")
+p.add_argument("--csv", default="")
+a = p.parse_args()
+port = a.port or (8883 if a.tls else 1883)
+
+lat = []          # ms
+last = {}         # device -> last seq
+lost = 0
+dups = 0
+count = 0
+first = None
+last_t = None
+
+
+def on_message(c, u, m):
+    global count, lost, dups, first, last_t
+    now = time.time_ns()
+    try:
+        d = json.loads(m.payload)
+    except Exception:
+        return
+    if "ts" not in d:
+        return
+    if first is None:
+        first = time.time()
+    count += 1
+    last_t = time.time()
+    lat.append((now - d["ts"]) / 1e6)
+    dev, seq = d.get("id"), d.get("seq", 0)
+    if dev in last:
+        if seq > last[dev] + 1:
+            lost += seq - last[dev] - 1
+        elif seq <= last[dev]:
+            dups += 1
+    last[dev] = max(seq, last.get(dev, 0))
+
+
+c = mk_client(f"sink-{os.getpid()}")
+if a.tls:
+    c.tls_set(ca_certs=a.ca, certfile=a.cert, keyfile=a.key, tls_version=ssl.PROTOCOL_TLS_CLIENT)
+    c.tls_insecure_set(True)
+c.on_message = on_message
+c.on_connect = lambda c, *args: c.subscribe(a.topic, qos=0)
+c.connect(a.broker, port, keepalive=30)
+c.loop_start()
+time.sleep(a.duration)
+c.loop_stop()
+
+el = (last_t - first) if first and last_t and last_t > first else a.duration   # active span only
+q = lambda x: round(statistics.quantiles(lat, n=100)[x - 1], 2) if len(lat) >= 100 else (round(max(lat), 2) if lat else None)
+res = {"tool": "latency-sink", "label": a.label, "topic": a.topic, "received": count,
+       "msgs_per_s": round(count / el, 1) if el else 0, "devices_seen": len(last),
+       "lost": lost, "loss_pct": round(100 * lost / max(count + lost, 1), 3), "duplicates": dups,
+       "lat_ms_p50": q(50), "lat_ms_p95": q(95), "lat_ms_p99": q(99),
+       "lat_ms_max": round(max(lat), 2) if lat else None}
+print(json.dumps(res))
+if a.csv:
+    new = not os.path.exists(a.csv)
+    with open(a.csv, "a") as f:
+        if new:
+            f.write(",".join(res.keys()) + "\n")
+        f.write(",".join(str(v) for v in res.values()) + "\n")

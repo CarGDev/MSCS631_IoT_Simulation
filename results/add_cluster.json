@@ -1,0 +1,10 @@
+{
+ "test": "add_cluster",
+ "time": "20261123-2043",
+ "data": {
+  "new_prefix": "10.6.50.0/24",
+  "learned_by_FOG-C1_after_s": 6.4,
+  "edge_c6_to_cloud_ok": true,
+  "changes_on_existing_routers": 0
+ }
+}

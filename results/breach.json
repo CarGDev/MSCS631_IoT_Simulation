@@ -1,0 +1,14 @@
+{
+ "test": "breach",
+ "time": "20261123-2037",
+ "data": {
+  "plaintext_1883": {
+   "file": "results/breach_plaintext_1883.pcap",
+   "payload_visible": true
+  },
+  "mtls_8883": {
+   "file": "results/breach_mtls_8883.pcap",
+   "payload_visible": false
+  }
+ }
+}

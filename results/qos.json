@@ -1,0 +1,48 @@
+{
+ "test": "qos",
+ "time": "20261123-2042",
+ "data": [
+  {
+   "qos": "off",
+   "class": "EF (safety)",
+   "avg_ms": 354.158,
+   "max_ms": 402.05,
+   "loss": "0"
+  },
+  {
+   "qos": "off",
+   "class": "AF31 (transit)",
+   "avg_ms": 354.422,
+   "max_ms": 402.787,
+   "loss": "0"
+  },
+  {
+   "qos": "off",
+   "class": "CS1 (public)",
+   "avg_ms": 354.196,
+   "max_ms": 402.084,
+   "loss": "0"
+  },
+  {
+   "qos": "on",
+   "class": "EF (safety)",
+   "avg_ms": 0.33,
+   "max_ms": 0.848,
+   "loss": "0"
+  },
+  {
+   "qos": "on",
+   "class": "AF31 (transit)",
+   "avg_ms": 0.334,
+   "max_ms": 0.858,
+   "loss": "0"
+  },
+  {
+   "qos": "on",
+   "class": "CS1 (public)",
+   "avg_ms": 0.994,
+   "max_ms": 1.704,
+   "loss": "0"
+  }
+ ]
+}

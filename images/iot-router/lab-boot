@@ -1,0 +1,17 @@
+#!/bin/bash
+# GNS3 links are UDP tunnels (uBridge): disable segmentation offloads so the kernel never hands
+# uBridge a 64 KB super-frame ("send: Message too long" kills the link thread under bulk traffic).
+# GNS3 also creates the interfaces with MTU 65521: force a normal Ethernet MTU of 1500.
+for i in $(ls /sys/class/net | grep -E '^eth[0-9]+$'); do ip link set "$i" mtu 1500 2>/dev/null; ethtool -K "$i" tso off gso off gro off tx off >/dev/null 2>&1; done
+# Boot: restore missing FRR defaults, enable routing daemons, start FRR, run /etc/lab/startup.sh, then give a shell (console).
+for f in /opt/frr-default/*; do [ -e "/etc/frr/$(basename "$f")" ] || cp -a "$f" /etc/frr/; done
+sed -i -E 's/^(bgpd|ospfd|ospf6d|bfdd|staticd)=no/\1=yes/' /etc/frr/daemons
+touch /etc/frr/vtysh.conf /etc/frr/frr.conf
+chown -R frr:frr /etc/frr 2>/dev/null
+sysctl -qw net.ipv4.ip_forward=1 net.ipv6.conf.all.forwarding=1 net.ipv4.tcp_syncookies=1 2>/dev/null
+[ -x /etc/lab/pre-frr.sh ] && /etc/lab/pre-frr.sh > /var/log/lab-pre.log 2>&1
+/usr/lib/frr/frrinit.sh start > /var/log/frr-start.log 2>&1
+[ -x /etc/lab/startup.sh ] && /etc/lab/startup.sh > /var/log/lab-startup.log 2>&1
+cd /root 2>/dev/null; export PS1="\h# "
+echo "$(hostname): router ready. 'vtysh' for routing, 'nft list ruleset' for firewall, 'cat /var/log/lab-startup.log' for boot log."
+exec bash -l

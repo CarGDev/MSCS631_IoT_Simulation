@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""sensor-sim: emulate many IoT devices publishing MQTT telemetry.
+
+Devices are spread over a number of gateway connections (like a LoRaWAN or
+edge gateway that forwards many sensors over one uplink). Every message
+carries a nanosecond timestamp and a per-device sequence number, so
+latency-sink can measure one-way latency and loss. All containers share
+the host clock, so one-way latency is exact.
+
+Example (500 parking sensors, 1 msg / 5 s each, over 5 gateways, mTLS):
+  sensor-sim --broker 10.2.200.10 --tls --gateways 5 --devices 500 \
+             --interval 5 --duration 60 --cls parking
+"""
+import argparse, json, os, random, ssl, sys, threading, time
+import paho.mqtt.client as mqtt
+
+
+def mk_client(cid):
+    """paho-mqtt 1.x and 2.x compatible constructor."""
+    try:
+        return mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=cid)
+    except AttributeError:
+        return mqtt.Client(client_id=cid)
+
+p = argparse.ArgumentParser()
+p.add_argument("--broker", required=True)
+p.add_argument("--port", type=int, default=None)
+p.add_argument("--tls", action="store_true", help="mutual TLS with /etc/lab/pki certs")
+p.add_argument("--ca", default="/etc/lab/pki/ca.crt")
+p.add_argument("--cert", default="/etc/lab/pki/client.crt")
+p.add_argument("--key", default="/etc/lab/pki/client.key")
+p.add_argument("--gateways", type=int, default=1, help="MQTT connections")
+p.add_argument("--devices", type=int, default=10, help="logical devices in total")
+p.add_argument("--interval", type=float, default=1.0, help="seconds between messages per device")
+p.add_argument("--duration", type=float, default=30)
+p.add_argument("--cls", default="env", help="device class (topic level)")
+p.add_argument("--cluster", default="c2")
+p.add_argument("--qos", type=int, default=0)
+p.add_argument("--size", type=int, default=100, help="approx payload bytes")
+a = p.parse_args()
+port = a.port or (8883 if a.tls else 1883)
+
+sent = [0] * a.gateways
+errors = [0] * a.gateways
+stop = time.time() + a.duration
+
+
+def gateway(g):
+    cid = f"{a.cluster}-{a.cls}-gw{g}-{os.getpid()}"
+    c = mk_client(cid)
+    if a.tls:
+        c.tls_set(ca_certs=a.ca, certfile=a.cert, keyfile=a.key, tls_version=ssl.PROTOCOL_TLS_CLIENT)
+        c.tls_insecure_set(True)  # lab certs use IPs, not hostnames
+    try:
+        c.connect(a.broker, port, keepalive=30)
+    except Exception as e:
+        print(f"gw{g}: connect failed: {e}", file=sys.stderr)
+        errors[g] += 1
+        return
+    c.loop_start()
+    devs = [d for d in range(a.devices) if d % a.gateways == g]
+    if not devs:
+        return
+    seq = {d: 0 for d in devs}
+    gap = a.interval / len(devs)          # spread devices evenly over the interval
+    pad = "x" * max(0, a.size - 80)
+    nxt = time.time() + random.random() * gap
+    i = 0
+    while time.time() < stop:
+        d = devs[i % len(devs)]
+        seq[d] += 1
+        msg = json.dumps({"id": f"{a.cluster}-{a.cls}-{d}", "seq": seq[d], "ts": time.time_ns(),
+                          "v": round(random.uniform(0, 100), 2), "p": pad})
+        r = c.publish(f"city/{a.cluster}/raw/{a.cls}/{d}", msg, qos=a.qos)
+        if r.rc == mqtt.MQTT_ERR_SUCCESS:
+            sent[g] += 1
+        else:
+            errors[g] += 1
+        i += 1
+        nxt += gap
+        delay = nxt - time.time()
+        if delay > 0:
+            time.sleep(delay)
+    time.sleep(1)
+    c.loop_stop()
+    c.disconnect()
+
+
+t0 = time.time()
+th = [threading.Thread(target=gateway, args=(g,), daemon=True) for g in range(a.gateways)]
+for t in th:
+    t.start()
+for t in th:
+    t.join()
+el = time.time() - t0
+target = a.devices / a.interval
+print(json.dumps({"tool": "sensor-sim", "devices": a.devices, "gateways": a.gateways,
+                  "target_msgs_per_s": round(target, 1), "sent": sum(sent),
+                  "achieved_msgs_per_s": round(sum(sent) / max(el - 1, 0.001), 1),
+                  "errors": sum(errors), "tls": a.tls, "qos": a.qos}))

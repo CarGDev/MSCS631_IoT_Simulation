@@ -1,0 +1,189 @@
+######## status
+== OSPF neighbors (FOG-C1)
+Neighbor ID     Pri State           Up Time         Dead Time Address         Interface                        RXmtL RqstL DBsmL
+10.255.0.2        1 Full/-          1m18s              3.306s 10.254.0.2      eth0:10.254.0.1                      0     0     0
+10.255.0.5        1 Full/-          1m12s              3.433s 10.254.0.17     eth1:10.254.0.18                     0     0     0
+10.255.0.11       1 Full/-          1m17s              3.454s 10.254.0.22     eth2:10.254.0.21                     0     0     0
+== BFD peers (FOG-C1)
+Session count: 6
+SessionId  LocalAddress                             PeerAddress                             Status         
+=========  ============                             ===========                             ======         
+2594481175 fe80::42:19ff:fe52:9b00                  fe80::42:2aff:fef9:b000                 up             
+4279551323 0.0.0.0                                  10.254.0.2                              up             
+3451390884 0.0.0.0                                  10.254.0.22                             up             
+797031317  fe80::42:19ff:fe52:9b01                  fe80::42:e6ff:fe3c:d801                 up             
+4093021544 0.0.0.0                                  10.254.0.17                             up             
+1110792215 fe80::42:19ff:fe52:9b02                  fe80::42:b0ff:fe1a:1900                 up
+== BGP (DC-A)
+        V         AS   MsgRcvd   MsgSent   TblVer  InQ OutQ  Up/Down State/PfxRcd   PfxSnt Desc
+203.0.113.2     4      64501         7         8        0    0    0 00:01:16            2        3 N/A
+
+Total number of neighbors 1
+== default route (FOG-C4)
+Routing entry for 0.0.0.0/0
+  Known via "ospf", distance 110, metric 10, best
+  Last update 00:01:06 ago
+  * 10.254.0.5, via eth0, weight 1
+== firewall / QoS (FW-C2)
+firewall: secure
+qdisc htb 1: root refcnt 2 r2q 10 default 0x30 direct_packets_stat 0 direct_qlen 1000
+== fog bridge (BROKER-C2)
+1795466104: Connecting bridge cloud-a (10.100.1.10:8883)
+== aggregator
+20:36:05 raw_in=0 summaries_out=0 reduction=0.00%
+######## access secure
+### Access-control matrix — firewall SECURE mode
+
+| Flow                                            | Source      | Result  | Expected (design) | Check |
+|-------------------------------------------------|-------------|---------|-------------------|-------|
+| Safety ctrl -> fog broker 8883 (mTLS)           | SIGNAL-CTRL | ALLOWED | ALLOWED           | PASS  |
+| RSU -> signal controller CoAP 5683 (preemption) | RSU         | ALLOWED | ALLOWED           | PASS  |
+| Transit -> fog broker 8883 (mTLS)               | TRANSIT-GW  | ALLOWED | ALLOWED           | PASS  |
+| Transit -> fog broker 1883 (plaintext)          | TRANSIT-GW  | blocked | blocked           | PASS  |
+| EV charger -> payment processor 443 (TLS)       | EV-CHARGER  | ALLOWED | ALLOWED           | PASS  |
+| EV charger -> fog broker 8883                   | EV-CHARGER  | blocked | blocked           | PASS  |
+| EV charger -> signal controller                 | EV-CHARGER  | blocked | blocked           | PASS  |
+| LoRa sensors -> fog broker 8883 (mTLS)          | LORA-GW     | ALLOWED | ALLOWED           | PASS  |
+| LoRa sensors -> signal controller CoAP          | LORA-GW     | blocked | blocked           | PASS  |
+| LoRa sensors -> Internet (botnet egress)        | LORA-GW     | blocked | blocked           | PASS  |
+| Public Wi-Fi -> Internet                        | PUBLIC-WIFI | ALLOWED | ALLOWED           | PASS  |
+| Public Wi-Fi -> signal controller CoAP          | PUBLIC-WIFI | blocked | blocked           | PASS  |
+| Public Wi-Fi -> fog broker 8883                 | PUBLIC-WIFI | blocked | blocked           | PASS  |
+| Public Wi-Fi -> payment zone (EV charger)       | PUBLIC-WIFI | blocked | blocked           | PASS  |
+| Mgmt jump host -> signal controller             | MGMT-JUMP   | ALLOWED | ALLOWED           | PASS  |
+| Internet attacker -> cloud front door 8883      | ATTACKER    | ALLOWED | ALLOWED           | PASS  |
+| Internet attacker -> signal controller          | ATTACKER    | blocked | blocked           | PASS  |
+| Internet attacker -> fog broker                 | ATTACKER    | blocked | blocked           | PASS  |
+
+saved results/access_secure.json and results/access_secure.md
+######## access open
+### Access-control matrix — firewall OPEN mode
+
+| Flow                                            | Source      | Result  |
+|-------------------------------------------------|-------------|---------|
+| Safety ctrl -> fog broker 8883 (mTLS)           | SIGNAL-CTRL | ALLOWED |
+| RSU -> signal controller CoAP 5683 (preemption) | RSU         | ALLOWED |
+| Transit -> fog broker 8883 (mTLS)               | TRANSIT-GW  | ALLOWED |
+| Transit -> fog broker 1883 (plaintext)          | TRANSIT-GW  | ALLOWED |
+| EV charger -> payment processor 443 (TLS)       | EV-CHARGER  | ALLOWED |
+| EV charger -> fog broker 8883                   | EV-CHARGER  | ALLOWED |
+| EV charger -> signal controller                 | EV-CHARGER  | ALLOWED |
+| LoRa sensors -> fog broker 8883 (mTLS)          | LORA-GW     | ALLOWED |
+| LoRa sensors -> signal controller CoAP          | LORA-GW     | ALLOWED |
+| LoRa sensors -> Internet (botnet egress)        | LORA-GW     | blocked |
+| Public Wi-Fi -> Internet                        | PUBLIC-WIFI | ALLOWED |
+| Public Wi-Fi -> signal controller CoAP          | PUBLIC-WIFI | ALLOWED |
+| Public Wi-Fi -> fog broker 8883                 | PUBLIC-WIFI | blocked |
+| Public Wi-Fi -> payment zone (EV charger)       | PUBLIC-WIFI | ALLOWED |
+| Mgmt jump host -> signal controller             | MGMT-JUMP   | ALLOWED |
+| Internet attacker -> cloud front door 8883      | ATTACKER    | ALLOWED |
+| Internet attacker -> signal controller          | ATTACKER    | blocked |
+| Internet attacker -> fog broker                 | ATTACKER    | blocked |
+(firewall returned to SECURE mode)
+
+saved results/access_open.json and results/access_open.md
+######## mtls
+### Device identity — mutual TLS at the cloud broker
+
+| Case                              | From      | Result   | Check | Client message                  |
+|-----------------------------------|-----------|----------|-------|---------------------------------|
+| Valid device certificate (lab CA) | EDGE-C4   | accepted | PASS  |                                 |
+| Rogue certificate (untrusted CA)  | ATTACKER  | rejected | PASS  | Error: The connection was lost. |
+| No client certificate             | INET-USER | rejected | PASS  | Error: The connection was lost. |
+| Plaintext (no TLS) to 8883        | INET-USER | rejected | PASS  | Error: Protocol error           |
+
+Broker log:
+```
+1795466223: OpenSSL Error[0]: error:0A000086:SSL routines::certificate verify failed
+1795466223: Client <unknown> disconnected: Protocol error.
+1795466223: New connection from 198.18.0.10:48816 on port 8883.
+1795466223: OpenSSL Error[0]: error:0A0000C7:SSL routines::peer did not return a certificate
+1795466223: Client <unknown> disconnected: Protocol error.
+1795466224: New connection from 198.18.0.10:48826 on port 8883.
+1795466224: OpenSSL Error[0]: error:0A000418:SSL routines::tlsv1 alert unknown ca
+1795466224: Client <unknown> disconnected: Protocol error.
+```
+
+saved results/mtls.json and results/mtls.md
+######## breach
+### Data-breach test — what an on-path attacker sees
+
+| Transport      | Capture                            | Payment data visible? |
+|----------------|------------------------------------|-----------------------|
+| plaintext_1883 | results/breach_plaintext_1883.pcap | YES — readable        |
+| mtls_8883      | results/breach_mtls_8883.pcap      | no — encrypted        |
+
+Open both pcaps in Wireshark: filter `mqtt` on the plaintext capture shows the payload; `tls` on the mTLS capture shows only Application Data.
+
+saved results/breach.json and results/breach.md
+######## failover
+### Failover — ring link C1–C2 cut (OSPF + BFD)
+
+| Metric                        | Value                                          |
+|-------------------------------|------------------------------------------------|
+| Probe                         | EDGE-C1 → FW-C2 (path over C1–C2) every 20 ms  |
+| Packets lost                  | 66                                             |
+| Measured outage / convergence | ~1320 ms                                       |
+| Path before cut (FOG-C1)      | 10.254.0.2 (eth0)                              |
+| Path after cut (FOG-C1)       | 10.254.0.17 (eth1)                             |
+| Design target                 | no single link failure isolates a cluster (S6) |
+
+saved results/failover.json and results/failover.md
+######## scale
+(100, 5, 100.0, 100.0, 0.0, 0.31, 0.52, 1.58, 4, '99.87%')
+(500, 5, 500.0, 499.8, 0.0, 0.26, 9.89, 30.38, 4, '99.97%')
+(2000, 10, 2000.0, 1998.3, 0.0, 0.27, 3.25, 8.12, 4, '99.99%')
+(5000, 20, 5000.0, 4996.0, 0.0, 0.36, 29.14, 36.44, 4, '100.00%')
+(10000, 40, 10000.0, 9992.3, 0.0, 1.64, 6.35, 17.79, 4, '100.00%')
+### Scalability — devices added step by step (fog broker C2, mutual TLS, 1 msg/s per device)
+
+| Devices | Gateways | Target msg/s | Fog msg/s | Loss % | p50 ms | p95 ms | p99 ms | Cloud msgs (summaries) | Upstream reduction |
+|---------|----------|--------------|-----------|--------|--------|--------|--------|------------------------|--------------------|
+| 100     | 5        | 100.0        | 100.0     | 0.0    | 0.31   | 0.52   | 1.58   | 4                      | 99.87%             |
+| 500     | 5        | 500.0        | 499.8     | 0.0    | 0.26   | 9.89   | 30.38  | 4                      | 99.97%             |
+| 2000    | 10       | 2000.0       | 1998.3    | 0.0    | 0.27   | 3.25   | 8.12   | 4                      | 99.99%             |
+| 5000    | 20       | 5000.0       | 4996.0    | 0.0    | 0.36   | 29.14  | 36.44  | 4                      | 100.00%            |
+| 10000   | 40       | 10000.0      | 9992.3    | 0.0    | 1.64   | 6.35   | 17.79  | 4                      | 100.00%            |
+
+S1: the fog aggregator forwards one summary per class every 10 s, so cloud traffic stays flat while device count grows.
+
+saved results/scale.json and results/scale.md
+######## qos
+### QoS — latency to the cloud while bulk sensor traffic saturates the 10 Mbit/s fog uplink
+
+| Mode    | Traffic class  | Avg RTT ms | Max RTT ms | Loss |
+|---------|----------------|------------|------------|------|
+| QoS OFF | EF (safety)    | 354.158    | 402.05     | 0%   |
+| QoS OFF | AF31 (transit) | 354.422    | 402.787    | 0%   |
+| QoS OFF | CS1 (public)   | 354.196    | 402.084    | 0%   |
+| QoS ON  | EF (safety)    | 0.33       | 0.848      | 0%   |
+| QoS ON  | AF31 (transit) | 0.334      | 0.858      | 0%   |
+| QoS ON  | CS1 (public)   | 0.994      | 1.704      | 0%   |
+
+DSCP is set at the fog firewall (trust boundary): EF for VLAN 10/20, AF31 transit, AF21 payment, CS1 sensors/public.
+
+saved results/qos.json and results/qos.md
+######## ddos
+('OFF', 0.58, 341.06, 0.0, 0, 'yes', 0, 0)
+('ON', 0.44, 402.92, 0.0, 0, 'yes', 326310, 159508)
+### DDoS — SYN floods (compromised sensor → fog broker, Internet botnet → cloud front door)
+
+| DDoS guard | Legit p95 ms (no attack) | Legit p95 ms (attack) | Legit loss % (attack) | Publish errors | Cloud connect OK | SYNs dropped at FW-C2 | SYNs dropped at DC-A |
+|------------|--------------------------|-----------------------|-----------------------|----------------|------------------|-----------------------|----------------------|
+| OFF        | 0.58                     | 341.06                | 0.0                   | 0              | yes              | 0                     | 0                    |
+| ON         | 0.44                     | 402.92                | 0.0                   | 0              | yes              | 326310                | 159508               |
+
+Controls: per-source SYN rate limit, global SYN cap, per-source connection limit, SYN cookies, egress anti-spoofing (Table 2, C7).
+
+saved results/ddos.json and results/ddos.md
+######## add-cluster
+### Scalability S2 — adding cluster C6 without redesign
+
+| Item                                 | Result                                                                       |
+|--------------------------------------|------------------------------------------------------------------------------|
+| New fog router                       | FOG-C6, dual-homed to FOG-C4 (eth2) and FOG-C2 (eth3), ports pre-provisioned |
+| Config changes on existing routers   | 0                                                                            |
+| Route 10.6.50.0/24 learned by FOG-C1 | after 6.4 s                                                                  |
+| EDGE-C6 → cloud reachability         | OK                                                                           |
+
+saved results/add_cluster.json and results/add_cluster.md

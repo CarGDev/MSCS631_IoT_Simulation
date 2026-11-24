@@ -1,0 +1,6 @@
+# Lab PKI (simulation only — throwaway keys, never use outside the lab)
+- ca.crt / ca.key        : "Smart City IoT Lab CA" (trusted by brokers and devices)
+- broker-c2.*            : fog broker C2 (10.2.200.10)
+- cloud-a.*              : cloud broker / API at DC-A (10.100.1.10)
+- device.*               : certificate shared by lab devices (CN=device-c2)
+- rogue.* / rogue-ca.*   : attacker device signed by an UNTRUSTED CA (must be rejected)

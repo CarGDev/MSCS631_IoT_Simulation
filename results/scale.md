@@ -1,0 +1,11 @@
+### Scalability — devices added step by step (fog broker C2, mutual TLS, 1 msg/s per device)
+
+| Devices | Gateways | Target msg/s | Fog msg/s | Loss % | p50 ms | p95 ms | p99 ms | Cloud msgs (summaries) | Upstream reduction |
+|---------|----------|--------------|-----------|--------|--------|--------|--------|------------------------|--------------------|
+| 100     | 5        | 100.0        | 100.0     | 0.0    | 0.31   | 0.52   | 1.58   | 4                      | 99.87%             |
+| 500     | 5        | 500.0        | 499.8     | 0.0    | 0.26   | 9.89   | 30.38  | 4                      | 99.97%             |
+| 2000    | 10       | 2000.0       | 1998.3    | 0.0    | 0.27   | 3.25   | 8.12   | 4                      | 99.99%             |
+| 5000    | 20       | 5000.0       | 4996.0    | 0.0    | 0.36   | 29.14  | 36.44  | 4                      | 100.00%            |
+| 10000   | 40       | 10000.0      | 9992.3    | 0.0    | 1.64   | 6.35   | 17.79  | 4                      | 100.00%            |
+
+S1: the fog aggregator forwards one summary per class every 10 s, so cloud traffic stays flat while device count grows.

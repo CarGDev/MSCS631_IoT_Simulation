@@ -1,0 +1,10 @@
+# Python packages for the IoT Smart City GNS3 simulation.
+#
+# The build/test scripts (scripts/build_project.py, scripts/labctl.py, scripts/gns3api.py)
+# use only the Python 3 standard library — nothing to install on the GNS3 server or your Mac.
+#
+# The device/broker tools (sensor-sim, latency-sink, fog-aggregator) already run INSIDE the
+# lab containers (installed in images/iot-host). Install this only if you want to run those
+# tools directly on your Mac against a broker:
+#   python3 -m pip install -r requirements.txt
+paho-mqtt>=1.6,<3

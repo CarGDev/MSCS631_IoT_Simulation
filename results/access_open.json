@@ -1,0 +1,114 @@
+{
+ "test": "access_open",
+ "time": "20261123-2037",
+ "data": [
+  {
+   "flow": "Safety ctrl -> fog broker 8883 (mTLS)",
+   "source": "SIGNAL-CTRL",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "RSU -> signal controller CoAP 5683 (preemption)",
+   "source": "RSU",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "Transit -> fog broker 8883 (mTLS)",
+   "source": "TRANSIT-GW",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "Transit -> fog broker 1883 (plaintext)",
+   "source": "TRANSIT-GW",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "EV charger -> payment processor 443 (TLS)",
+   "source": "EV-CHARGER",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "EV charger -> fog broker 8883",
+   "source": "EV-CHARGER",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "EV charger -> signal controller",
+   "source": "EV-CHARGER",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "LoRa sensors -> fog broker 8883 (mTLS)",
+   "source": "LORA-GW",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "LoRa sensors -> signal controller CoAP",
+   "source": "LORA-GW",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "LoRa sensors -> Internet (botnet egress)",
+   "source": "LORA-GW",
+   "result": "blocked",
+   "expected": null
+  },
+  {
+   "flow": "Public Wi-Fi -> Internet",
+   "source": "PUBLIC-WIFI",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "Public Wi-Fi -> signal controller CoAP",
+   "source": "PUBLIC-WIFI",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "Public Wi-Fi -> fog broker 8883",
+   "source": "PUBLIC-WIFI",
+   "result": "blocked",
+   "expected": null
+  },
+  {
+   "flow": "Public Wi-Fi -> payment zone (EV charger)",
+   "source": "PUBLIC-WIFI",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "Mgmt jump host -> signal controller",
+   "source": "MGMT-JUMP",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "Internet attacker -> cloud front door 8883",
+   "source": "ATTACKER",
+   "result": "allowed",
+   "expected": null
+  },
+  {
+   "flow": "Internet attacker -> signal controller",
+   "source": "ATTACKER",
+   "result": "blocked",
+   "expected": null
+  },
+  {
+   "flow": "Internet attacker -> fog broker",
+   "source": "ATTACKER",
+   "result": "blocked",
+   "expected": null
+  }
+ ]
+}
